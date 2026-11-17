@@ -1,0 +1,64 @@
+
+@startuml title
+title HealthResearch AI - UML Component Diagram
+
+left to right direction
+skinparam componentStyle uml2
+skinparam linetype ortho
+
+package "Frontend" {
+  component "Streamlit UI" as UI
+}
+
+package "LangGraph Orchestration" {
+  component "LangGraph Orchestrator" as LG
+  component "Planner / Router Agent" as P
+  component "Research Agent" as R
+  component "Summarization Agent" as S
+  component "Reflection Agent" as V
+}
+
+package "Retrieval Layer" {
+  component "LangChain RAG Tool" as RAG
+  database "ChromaDB" as DB
+}
+
+cloud "LLM Provider" as LLM
+
+interface "IResearchRequest" as IRequest
+interface "IRouting" as IRoute
+interface "IResearch" as IResearch
+interface "ISummarize" as ISummary
+interface "IReview" as IReview
+interface "IRetrieval" as IRetrieve
+interface "IVectorSearch" as IVector
+interface "ILLM" as IModel
+
+LG -- IRequest
+UI ..> IRequest : requires
+
+P -- IRoute
+LG ..> IRoute : requires
+
+R -- IResearch
+LG ..> IResearch : requires
+
+S -- ISummary
+LG ..> ISummary : requires
+
+V -- IReview
+LG ..> IReview : requires
+
+RAG -- IRetrieve
+R ..> IRetrieve : requires
+
+DB -- IVector
+RAG ..> IVector : requires
+
+LLM -- IModel
+P ..> IModel
+R ..> IModel
+S ..> IModel
+V ..> IModel
+
+@enduml
