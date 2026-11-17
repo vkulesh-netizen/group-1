@@ -1,0 +1,28 @@
+@startuml
+actor Analyst
+participant Streamlit
+participant Router
+participant Research
+participant "RAG tool" as RAG
+database ChromaDB
+participant Reviewer
+Analyst -> Streamlit: Submit question
+Streamlit -> Router: Invoke graph
+alt In scope
+  Router -> Research: Invoke research node
+  Research -> RAG: Retrieve passages
+  RAG -> ChromaDB: Query vector
+  ChromaDB --> RAG: Ranked records
+  RAG --> Research: Evidence and citations
+  Research -> Reviewer: Draft and evidence
+  alt Every claim matches
+    Reviewer --> Router: Publish cited summary
+  else Empty evidence or mismatched claim
+    Reviewer --> Router: Withhold draft and give verdict
+  end
+else Outside scope
+  Router -> Router: Set scope reply
+end
+Router --> Streamlit: Return result
+Streamlit --> Analyst: Display result
+@enduml
