@@ -13,7 +13,7 @@ Classify incoming health questions and select the
 appropriate workflow.
 
 LLM:
-Groq-hosted GPT-OSS-20B (proposed).
+Groq-hosted (proposed).
 
 Tools:
 LangGraph conditional routing.
@@ -42,7 +42,7 @@ Responsibility:
 Generate clear summaries using retrieved evidence.
 
 LLM:
-Groq-hosted GPT-OSS-20B (proposed).
+Groq-hosted  (proposed).
 
 Tools:
 LangChain prompt templates.
@@ -57,7 +57,7 @@ Review summaries for factual grounding,
 citation support, and completeness.
 
 LLM:
-Groq-hosted GPT-OSS-20B (proposed).
+Groq-hosted (proposed).
 
 Tools:
 Structured review prompt and LangGraph routing.
