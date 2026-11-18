@@ -21,7 +21,7 @@ component "Scope Reply" as Scope
 Analyst --> Streamlit : Health inquiry
 Streamlit ..> Router : Question
 Router ..> Research : Supported question
-Router ..> Reflect : Draft + evidence
+Research ..> Reflect : Draft + evidence
 Research ..> RAG : Search query
 RAG ..> ChromaDB : Vector search
 
@@ -30,7 +30,6 @@ Router ..> Scope : Out-of-scope question
 Scope --> Streamlit : Scope message
 ChromaDB --> RAG : Relevant passages
 RAG --> Research : Evidence + source IDs
-Research --> Router : Evidence + draft
 Reflect --> Router : Verdict + answer
 Router --> Streamlit : Final response
 
@@ -73,6 +72,12 @@ note bottom of ChromaDB
   Four curated CDC passages
   Binary keyword vectors
   In-memory storage
+end note
+
+note bottom of IW
+  Conceptual workflow interface.
+  Implemented through LangGraph
+  graph invocation.
 end note
 
 @enduml

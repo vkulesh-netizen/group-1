@@ -2,6 +2,7 @@
 @startuml HealthResearchArchitecture
 title Sleep Health Research - Overall Architecture
 top to bottom direction
+skinparam linetype ortho
 skinparam componentStyle rectangle
 
 actor "Research Analyst" as User
@@ -36,7 +37,8 @@ RAG --> DB : Binary-vector search
 DB --> RAG : Ranked passages
 RAG --> Research : Evidence + IDs
 Research --> Reflect : Draft + evidence
-Reflect --> UI : Reviewed result
+Reflect --> Router : Reviewed result
+Router --> UI : Final response
 Scope --> UI : Scope response
 DB ..> CDC : Source attribution
 
