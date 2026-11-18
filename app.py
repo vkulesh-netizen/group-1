@@ -87,7 +87,7 @@ def normalize(state):
             "feedback": "",
         }
     status = state.get("review_status")
-    verdict = STATUS_TO_VERDICT.get(status, "outside scope")
+    verdict = STATUS_TO_VERDICT.get(status, "review unavailable")
     evidence = [
         {
             "id": doc.get("source_id", ""),
@@ -101,7 +101,7 @@ def normalize(state):
     return {
         "verdict": verdict,
         "answer": state.get("final_answer") or state.get("review_feedback")
-        or "Ask a general research question about sleep health.",
+        or "The workflow did not return a recognized review outcome.",
         "evidence": evidence,
         "draft": [{"id": ", ".join(state.get("citations", [])), "text": draft}] if draft else [],
         "feedback": state.get("review_feedback", ""),
@@ -165,7 +165,7 @@ def run(question):
         show_sources(result["evidence"])
     else:
         st.caption(result["answer"])
-    if result["verdict"] != "outside scope":
+    if result["verdict"] in STATUS_TO_VERDICT.values():
         show_review_trace(result)
 
 

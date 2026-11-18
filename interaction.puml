@@ -1,0 +1,43 @@
+
+@startuml
+title Sleep Health Research - UML Sequence Diagram
+
+actor Analyst
+participant Streamlit
+participant Router
+participant Research
+participant "RAG tool" as RAG
+database ChromaDB
+participant Reviewer
+participant "Scope Reply" as Scope
+
+Analyst -> Streamlit: Submit question
+Streamlit -> Router: Invoke LangGraph workflow
+
+alt In scope
+    Router -> Research: Invoke research node
+    Research -> RAG: Retrieve sleep evidence
+    RAG -> ChromaDB: Query keyword vectors
+    ChromaDB --> RAG: Ranked records
+    RAG --> Research: Evidence and citation IDs
+
+    Research -> Reviewer: Draft and evidence
+
+    alt Evidence matched
+        Reviewer --> Router: Verdict + cited answer
+    else Insufficient evidence
+        Reviewer --> Router: Verdict + no-evidence message
+    else Unsupported draft
+        Reviewer --> Router: Verdict + rejection message
+    end
+
+else Outside scope
+    Router -> Scope: Invoke scope_reply node
+    Scope --> Router: Outside-scope verdict and message
+end
+
+Router --> Streamlit: Return final workflow state
+Streamlit --> Analyst: Display answer and verdict
+
+@enduml
+

@@ -1,58 +1,57 @@
 
-
-@startuml title
-title HealthResearch AI - Overall Architecture
-
+@startuml HealthResearchArchitecture
+title Sleep Health Research - Overall Architecture
 top to bottom direction
+skinparam linetype ortho
 skinparam componentStyle rectangle
 
-actor "Health Research User" as User
+actor "Research Analyst" as User
 
 package "Presentation Layer" {
-    component "Streamlit Frontend" as UI
+  component "Streamlit Frontend" as UI
 }
 
-package "Agent Orchestration Layer" {
-    component "LangGraph Orchestrator" as Graph
-    component "Planner / Router Agent" as Planner
+package "Orchestration Layer - LangGraph" {
+  component "Planner / Router\nselect()" as Router
+  component "Scope Reply" as Scope
 }
 
-package "Worker Agents - Level 2" {
-    component "Research Agent" as Research
-    component "Summarization Agent" as Summary
-    component "Reflection Agent" as Reflection
+package "Worker Layer" {
+  component "Research Worker\nresearch()" as Research
+  component "Reflective Worker\nreflect()" as Reflect
 }
 
-package "Knowledge and Retrieval Layer" {
-    component "LangChain RAG Tool" as RAG
-    database "ChromaDB Health Knowledge Base" as DB
+package "Retrieval Layer" {
+  component "LangChain Retrieval Tool\nretrieve_sleep_evidence()" as RAG
+  database "In-memory ChromaDB\ncdc_sleep_v1" as DB
 }
 
-cloud "Shared LLM Provider" as LLM
+cloud "CDC About Sleep\nSource Reference" as CDC
 
-User --> UI : Health inquiry
-UI --> Graph : Question
-Graph --> Planner : Classify and route
-Planner --> Graph : Routing decision
+User --> UI : General sleep question
+UI --> Router : Invoke workflow
+Router --> Scope : Out-of-scope request
+Router --> Research : In-scope request
+Research --> RAG : Query
+RAG --> DB : Binary-vector search
+DB --> RAG : Ranked passages
+RAG --> Research : Evidence + IDs
+Research --> Reflect : Draft + evidence
+Reflect --> Router : Reviewed result
+Router --> UI : Final response
+Scope --> UI : Scope response
+DB ..> CDC : Source attribution
 
-Graph --> Research : Research request
-Research --> RAG : Retrieve evidence
-RAG --> DB : Similarity search
-DB --> RAG : Relevant documents
-RAG --> Research : Evidence and citations
+note right of Router
+  Deterministic keyword and
+  personal-advice scope rules.
+  No LLM invocation.
+end note
 
-Research --> Graph : Retrieved evidence
-Graph --> Summary : Generate summary
-Summary --> Graph : Draft answer
-
-Graph --> Reflection : Review draft
-Reflection --> Graph : Review result
-
-Graph --> UI : Final cited answer
-
-Planner ..> LLM
-Research ..> LLM
-Summary ..> LLM
-Reflection ..> LLM
+note right of DB
+  Four curated paraphrases.
+  Ephemeral collection.
+  No pretrained embeddings.
+end note
 
 @enduml
