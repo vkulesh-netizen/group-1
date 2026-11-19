@@ -1,0 +1,20 @@
+@startuml
+title Research Worker Workflow
+
+start
+:Receive in-scope question from LangGraph;
+:Invoke LangChain retrieval tool;
+
+if (Query matches indexed terms?) then (yes)
+    :Search ChromaDB for up to three passages;
+    :Filter weak matches;
+    :Collect evidence and citation IDs;
+else (no)
+    :Return an empty evidence list;
+endif
+
+:Build an extractive draft from the evidence;
+:Return evidence and draft to LangGraph;
+stop
+
+@enduml

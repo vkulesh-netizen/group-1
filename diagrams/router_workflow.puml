@@ -1,0 +1,21 @@
+@startuml
+title Planner and Router Workflow
+
+start
+:Receive research question;
+:Convert question to lowercase and identify words;
+
+if (Contains sleep or bedtime?) then (yes)
+    if (Requests personal medical advice?) then (yes)
+        :Route to scope_reply;
+        :Return outside-scope message;
+    else (no)
+        :Route to research worker;
+    endif
+else (no)
+    :Route to scope_reply;
+    :Return outside-scope message;
+endif
+
+stop
+@enduml
