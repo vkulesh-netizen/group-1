@@ -2,12 +2,12 @@
 
 ## Selection and routing
 
-The planner uses `select()` to route each question. It accepts general
-sleep research questions containing the terms "sleep" or "bedtime".
-It sends personal medical-advice requests and questions outside this
-scope to `scope_reply`. These rules are deterministic, so the routing
-decision is easy to inspect and test. Their limitation is that other
-valid ways of asking about sleep may still be rejected.
+The planner uses `select()` to route each question. It accepts questions
+containing "sleep" or "bedtime" unless they also contain first-person
+pronouns or medical-advice terms. Other questions go to `scope_reply`.
+This deterministic rule is easy to inspect and test, but it may reject
+valid sleep research questions phrased in the first person or with
+other sleep-related words.
 
 ## Agent workflows
 

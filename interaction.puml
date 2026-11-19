@@ -33,7 +33,7 @@ alt General sleep question
         Reflect --> Graph: Unsupported draft; withhold answer
     end
 
-else Outside scope or personal medical advice
+else Outside scope or blocked personal wording
     Router --> Graph: Route to scope_reply
     Graph -> Scope: Create scope response
     Scope --> Graph: Outside-scope verdict and message

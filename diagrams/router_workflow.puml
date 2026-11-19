@@ -6,7 +6,7 @@ start
 :Convert question to lowercase and identify words;
 
 if (Contains sleep or bedtime?) then (yes)
-    if (Requests personal medical advice?) then (yes)
+    if (Contains first-person or medical-advice terms?) then (yes)
         :Route to scope_reply;
         :Return outside-scope message;
     else (no)
