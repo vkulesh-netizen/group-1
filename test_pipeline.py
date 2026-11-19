@@ -14,9 +14,7 @@ class ResearchTests(unittest.TestCase):
         self.assertIn("[habits]", result["answer"])
 
     def test_bedtime_question_without_sleep_word(self):
-        result = self.graph.invoke({
-        "question": "What bedtime habits does CDC recommend?"
-        })
+        result = self.graph.invoke({"question": "What bedtime habits does CDC recommend?"})
         self.assertEqual(result["verdict"], "evidence matched")
         self.assertIn("[habits]", result["answer"])
 
