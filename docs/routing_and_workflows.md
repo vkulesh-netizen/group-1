@@ -11,14 +11,15 @@ other sleep-related words.
 
 ## Agent workflows
 
-The research worker receives an accepted question and invokes the
-LangChain retrieval tool. The tool searches the in-memory ChromaDB
-collection of curated CDC sleep passages. The worker returns the
-retrieved evidence with citation IDs and builds an extractive draft.
+The research worker is a LangChain agent backed by an LLM on Groq.
+It receives an accepted question, chooses a keyword query, and
+invokes the LangChain retrieval tool. The tool searches the in-memory
+ChromaDB collection of curated CDC sleep passages. The agent then
+writes a short summary in which every sentence cites a passage ID.
 
 The reflective worker receives both the draft and the evidence. It
-checks whether every draft line exactly matches the passage identified
-by its citation ID. A matching draft becomes the cited answer. If no
+checks that every draft sentence cites a retrieved passage and that
+most of the sentence's content words appear in that passage. A matching draft becomes the cited answer. If no
 evidence was retrieved, it returns "insufficient evidence" and gives
 no answer. If a draft line does not match its evidence, it returns
 "unsupported draft" and withholds that draft. The prototype does not
@@ -33,7 +34,8 @@ Individual workflows are in `diagrams/router_workflow.puml`,
 
 ## Verification
 
-The original four unit tests and the new bedtime-routing test pass.
-The Streamlit demo also showed a cited answer for a bedtime-habits
-question and an insufficient-evidence verdict for a question about
-sleep on Mars.
+The unit tests replace the LLM with a scripted stand-in, so they run
+offline and give the same result every time. They cover routing, a
+cited answer, missing evidence, an invented claim, and a citation to
+a passage that was never retrieved. One extra test calls the real
+Groq model and runs only when GROQ_API_KEY is set in `.env`.

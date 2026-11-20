@@ -12,7 +12,8 @@ LangGraph orchestrates the workflow. LangChain provides
 the retrieval tool, ChromaDB stores the evidence collection,
 and Streamlit provides the user interface.
 
-The implemented prototype does not invoke an LLM.
+Only the Research Worker invokes an LLM. The router and the
+reflective worker are deterministic.
 
 ## 2. Planner / Router
 
@@ -42,16 +43,34 @@ Question -> Scope check -> Research or Scope Reply
 
 ## 3. Research Worker
 
-Implementation: research() in pipeline.py
+Implementation: research_agent.py, a LangChain agent
+(create_agent) called by research() in pipeline.py.
 
 Responsibility:
 - Receive the supported question.
-- Invoke the LangChain retrieval tool.
-- Retrieve up to three matching passages.
-- Construct an extractive draft with citation IDs.
+- Decide the keyword query and call the LangChain
+  retrieval tool (one retry with new keywords if empty).
+- Write a 1-3 sentence summary using only the retrieved
+  passages, ending every sentence with a citation ID.
+- Reply NO_EVIDENCE when nothing relevant is retrieved.
 - Pass the draft and evidence to the reviewer.
 
-LLM: None.
+LLM: openai/gpt-oss-20b hosted on Groq (set by LLM_MODEL
+in .env), temperature 0.
+
+Justification:
+An LLM lets the worker choose its own search query and
+summarize in plain language instead of pasting passages.
+gpt-oss-20b is an open-weight model that supports tool
+calling, and Groq serves it quickly on a free tier.
+Temperature 0 keeps answers repeatable for the demo.
+
+How retrieved passages support the draft:
+- The evidence passed on is read from the tool's own
+  results, not from the model's description of them.
+- Every sentence must cite one retrieved passage ID.
+- A sentence without a citation is kept with an empty ID
+  so the reviewer flags it instead of it being dropped.
 
 Tool:
 retrieve_sleep_evidence(), implemented using LangChain.
@@ -59,16 +78,15 @@ retrieve_sleep_evidence(), implemented using LangChain.
 Knowledge base:
 ChromaDB collection cdc_sleep_v1.
 
-Justification:
-Extractive drafting preserves a direct relationship
-between the response and the retrieved passages.
-
 Limitation:
-The worker cannot generate nuanced summaries or
-synthesize information beyond the curated evidence.
+The model may paraphrase beyond what the lexical reviewer
+accepts, and it needs a Groq API key and network access.
+It abstains when a passage is related but does not answer
+the question (e.g. hours of sleep by age).
 
 Workflow:
-Question -> RAG Tool -> ChromaDB -> Evidence -> Draft
+Question -> LLM chooses query -> RAG Tool -> ChromaDB ->
+Evidence -> LLM writes cited summary -> Draft
 
 ## 4. Reflective Worker
 
@@ -76,7 +94,10 @@ Implementation: reflect() in pipeline.py
 
 Responsibility:
 - Receive the draft and retrieved evidence.
-- Verify each draft citation ID and its exact text.
+- Check that each draft sentence cites a retrieved passage.
+- Check that at least 60% of the sentence's content words
+  (after removing stop words and plural "s") appear in
+  that passage.
 - Return an evidence-matched verdict when valid.
 - Withhold unsupported drafts.
 - Report insufficient evidence when no draft exists.
@@ -84,18 +105,21 @@ Responsibility:
 LLM: None.
 
 Tools:
-Python dictionary lookup and exact string comparison.
+Python dictionary lookup and word-overlap scoring
+(supported() in pipeline.py).
 
 Justification:
-Exact matching offers predictable and testable
-grounding checks for an extractive prototype.
+Word overlap is predictable and testable, and it tolerates
+the light rewording an LLM summary introduces, which an
+exact string match would reject.
 
 Limitation:
-It cannot establish clinical correctness, assess
-semantic paraphrases, or detect all misleading claims.
+It cannot establish clinical correctness, recognise
+heavy paraphrases or synonyms, or detect all misleading
+claims that reuse the passage's words.
 
 Workflow:
-Draft + Evidence -> Exact Match Check ->
+Draft + Evidence -> Word-overlap Check ->
 Publish, Insufficient Evidence, or Unsupported Draft
 
 ## 5. Knowledge Base
@@ -144,13 +168,13 @@ Deterministic routing:
 + Transparent and repeatable
 - Limited language understanding
 
-Extractive drafting:
-+ Easy to trace to evidence
-- Limited synthesis
+LLM drafting with required citations:
++ Natural summaries, agent chooses its own query
+- Needs an API key; output can vary between runs
 
-Exact-match reflection:
-+ Easy to test
-- Does not verify medical correctness
+Word-overlap reflection:
++ Easy to test, tolerates light rewording
+- Does not verify medical correctness or synonyms
 
 In-memory ChromaDB:
 + Simple setup and demonstration
@@ -163,7 +187,6 @@ Binary term vectors:
 ## 8. Future Enhancements
 
 Possible extensions, not currently implemented:
-- LLM-assisted summarization
 - Semantic embeddings
 - Semantic reflection
 - Persistent vector storage
