@@ -1,43 +1,45 @@
-
 @startuml
 title Sleep Health Research - UML Sequence Diagram
 
-actor Analyst
+actor "Research Analyst" as Analyst
 participant Streamlit
-participant Router
-participant Research
-participant "RAG tool" as RAG
+participant "LangGraph workflow" as Graph
+participant "Router select()" as Router
+participant "Research research()" as Research
+participant "LangChain RAG tool" as RAG
 database ChromaDB
-participant Reviewer
-participant "Scope Reply" as Scope
+participant "Reflective worker reflect()" as Reflect
+participant "Scope reply" as Scope
 
 Analyst -> Streamlit: Submit question
-Streamlit -> Router: Invoke LangGraph workflow
+Streamlit -> Graph: invoke({question})
+Graph -> Router: select(state)
 
-alt In scope
-    Router -> Research: Invoke research node
-    Research -> RAG: Retrieve sleep evidence
-    RAG -> ChromaDB: Query keyword vectors
-    ChromaDB --> RAG: Ranked records
-    RAG --> Research: Evidence and citation IDs
+alt General sleep question
+    Router --> Graph: Route to research
+    Graph -> Research: research(state)
+    Research -> RAG: Retrieve evidence(question)
+    RAG -> ChromaDB: Search indexed passages
+    ChromaDB --> RAG: Matching records
+    RAG --> Research: Evidence with citation IDs
+    Research --> Graph: Evidence and extractive draft
+    Graph -> Reflect: reflect(state)
 
-    Research -> Reviewer: Draft and evidence
-
-    alt Evidence matched
-        Reviewer --> Router: Verdict + cited answer
-    else Insufficient evidence
-        Reviewer --> Router: Verdict + no-evidence message
-    else Unsupported draft
-        Reviewer --> Router: Verdict + rejection message
+    alt Evidence matches draft
+        Reflect --> Graph: Cited answer and evidence matched
+    else No relevant evidence
+        Reflect --> Graph: Insufficient evidence; withhold answer
+    else Draft does not match evidence
+        Reflect --> Graph: Unsupported draft; withhold answer
     end
 
-else Outside scope
-    Router -> Scope: Invoke scope_reply node
-    Scope --> Router: Outside-scope verdict and message
+else Outside scope or blocked personal wording
+    Router --> Graph: Route to scope_reply
+    Graph -> Scope: Create scope response
+    Scope --> Graph: Outside-scope verdict and message
 end
 
-Router --> Streamlit: Return final workflow state
-Streamlit --> Analyst: Display answer and verdict
+Graph --> Streamlit: Final workflow state
+Streamlit --> Analyst: Display verdict and response
 
 @enduml
-

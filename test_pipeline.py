@@ -13,6 +13,11 @@ class ResearchTests(unittest.TestCase):
         self.assertEqual(result["verdict"], "evidence matched")
         self.assertIn("[habits]", result["answer"])
 
+    def test_bedtime_question_without_sleep_word(self):
+        result = self.graph.invoke({"question": "What bedtime habits does CDC recommend?"})
+        self.assertEqual(result["verdict"], "evidence matched")
+        self.assertIn("[habits]", result["answer"])
+
     def test_outside_scope(self):
         result = self.graph.invoke({"question": "What sleep medication should I take?"})
         self.assertEqual(result["verdict"], "outside scope")

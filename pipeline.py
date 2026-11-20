@@ -95,7 +95,7 @@ def select(state):
         r"\b(i|my|me)\b|\b(diagnos\w*|dosage|prescri\w*|treat\w*|medicat\w*|supplement\w*)\b",
         question,
     )
-    return "research" if "sleep" in tokens(question) and not personal else "scope_reply"
+    return "research" if tokens(question) & {"sleep", "bedtime"} and not personal else "scope_reply"
 
 
 def reflect(state):
