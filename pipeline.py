@@ -5,8 +5,11 @@ from pathlib import Path
 from typing import TypedDict
 
 import chromadb
+from langchain.agents import create_agent
 from langchain.tools import tool
 from langgraph.graph import END, START, StateGraph
+
+from research_agent import SYSTEM_PROMPT, make_llm, run_research_agent
 
 SOURCE = "https://www.cdc.gov/sleep/about/index.html"
 CORPUS = {
@@ -19,18 +22,35 @@ CORPUS = {
     "benefits": ("sleep benefits health mood attention memory",
                  "CDC associates sufficient sleep with better mood, attention, and memory."),
 }
-STOP = set("a an and are can cdc do does for good how i in is it of on say should that the to what which who with you about help tell".split())
+STOP = set(
+    "a an and are as at be by can cdc do does for from good how i in is it of on or say should "
+    "that the their this to what which who with you about help tell".split()
+)
+SUPPORT_THRESHOLD = 0.6
 
 
 def tokens(text):
     return set(re.findall(r"[a-z]+", text.lower())) - STOP
 
 
+def stems(text):
+    """Content words with a plural or verb "s" removed, so "habits" matches "habit"."""
+    return {w[:-1] if len(w) > 3 and w.endswith("s") and not w.endswith("ss") else w
+            for w in tokens(text)}
+
+
+def supported(sentence, passage):
+    """True when most content words of a draft sentence appear in its cited passage."""
+    words = stems(sentence)
+    return bool(words) and len(words & stems(passage)) / len(words) >= SUPPORT_THRESHOLD
+
+
 def vector(words, vocabulary):
     return [float(word in words) for word in vocabulary]
 
 
-def build_workflow():
+def build_workflow(llm=None):
+    """Compile the LangGraph workflow. ``llm`` defaults to the Groq model in .env."""
     vocabulary = sorted(tokens(" ".join(keywords for keywords, _ in CORPUS.values())))
     database = chromadb.EphemeralClient()
     collection = database.get_or_create_collection(
@@ -62,11 +82,13 @@ def build_workflow():
             if distance < 0.999
         ])
 
+    agent = create_agent(
+        llm or make_llm(), [retrieve_sleep_evidence],
+        system_prompt=SYSTEM_PROMPT, name="research_worker",
+    )
+
     def research(state):
-        evidence = json.loads(retrieve_sleep_evidence.invoke({"query": state["question"]}))
-        return {"evidence": evidence, "draft": [
-            {"id": item["id"], "text": item["text"]} for item in evidence
-        ]}
+        return run_research_agent(agent, state["question"])
 
     graph = StateGraph(ResearchState)
     graph.add_node("research", research)
@@ -103,7 +125,7 @@ def reflect(state):
     draft = state["draft"]
     if not draft:
         return {"verdict": "insufficient evidence", "answer": "The indexed CDC material did not match this question."}
-    if any(evidence.get(item["id"]) != item["text"] for item in draft):
+    if not all(supported(item["text"], evidence.get(item["id"], "")) for item in draft):
         return {"verdict": "unsupported draft", "answer": "The review found a claim without matching evidence."}
     return {
         "verdict": "evidence matched",

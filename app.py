@@ -8,13 +8,14 @@ team's shared ``AgentState`` (shared_state.py: review_status, final_answer,
 retrieved_documents, draft_answer, citations, review_feedback) and the early
 prototype keys (verdict, answer, evidence, draft), so the UI keeps working
 while modules are integrated.
-It never stores questions or answers outside the current browser session.
+It never stores questions or answers outside the current browser session, but
+questions are sent to Groq for the research agent's LLM.
 """
 import re
 
 import streamlit as st
 
-from pipeline import build_workflow
+from pipeline import build_workflow, supported
 
 # ---------------------------------------------------------------------------
 # Configuration
@@ -133,17 +134,17 @@ def show_review_trace(result):
         st.markdown(
             "1. **Router** checked that the question is about sleep and asks for no "
             "personal medical advice.\n"
-            "2. **Research agent** called the ChromaDB retrieval tool and built a "
-            "draft from the top passages.\n"
-            "3. **Reflective agent** compared every draft statement with the passage "
-            "it cites before anything was shown."
+            "2. **Research agent** (an LLM) called the ChromaDB retrieval tool and "
+            "wrote a short summary, citing a passage for every sentence.\n"
+            "3. **Reflective agent** checked that most words in every draft sentence "
+            "appear in the passage it cites before anything was shown."
         )
         evidence = {item["id"]: item["text"] for item in result.get("evidence", [])}
         rows = [
             {
                 "Citation": item["id"],
                 "Draft statement": item["text"],
-                "Matches evidence": "Yes" if evidence.get(item["id"]) == item["text"] else "No",
+                "Supported by evidence": "Yes" if supported(item["text"], evidence.get(item["id"], "")) else "No",
             }
             for item in result.get("draft", [])
         ]
@@ -185,7 +186,8 @@ with st.sidebar:
         "health professional."
     )
     st.markdown(
-        "**Privacy.** Questions are processed locally and are not saved. "
+        "**Privacy.** Questions are sent to an external LLM service (Groq) to "
+        "write the summary, and this app does not save them. "
         "Do not include names, contact details, or health records."
     )
     st.markdown(
