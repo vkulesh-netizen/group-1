@@ -1,0 +1,26 @@
+@startjson
+title Feedback and chat log (abridged example, schemas/feedback_log.schema.json)
+{
+  "schema_version": "1.0",
+  "run_id": "example0001",
+  "question": "What sleep habits does CDC suggest?",
+  "max_revisions": 1,
+  "exchanges": [
+    {"step": 1, "actor": "research_worker", "attempt": 0, "feedback_received": "none (first attempt)",
+     "messages": ["human: question", "ai: tool call", "tool: passages", "ai: cited draft"]},
+    {"step": 2, "actor": "reflective_worker", "attempt": 0, "review": {"verdict": "revise"}},
+    {"step": 3, "actor": "langgraph_router", "attempt": 0, "decision": "revise"},
+    {"step": 4, "actor": "research_worker", "attempt": 1, "feedback_received": "Narrow the claim ..."},
+    {"step": 5, "actor": "reflective_worker", "attempt": 1, "review": {"verdict": "revise"}},
+    {"step": 6, "actor": "langgraph_router", "attempt": 1, "decision": "report_limits"}
+  ],
+  "feedback": [
+    {"attempt": 0, "claim": "CDC says melatonin supplements cure insomnia within a week.",
+     "citation": "habits", "support_ratio": 0.0, "gap": "low_support",
+     "action": "narrow_claim", "instruction": "Narrow the claim ... to what passage [habits] states ..."}
+  ],
+  "outcome": {"verdict": "partially supported", "revision_count": 1,
+              "answer": "CDC lists keeping a regular bedtime ... [habits]",
+              "limits": ["Not shown, passage [habits] does not support it (0% of words match) ..."]}
+}
+@endjson

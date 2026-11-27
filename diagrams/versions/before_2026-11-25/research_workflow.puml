@@ -1,0 +1,28 @@
+@startuml
+title Research Worker Workflow (LangChain agent)
+
+start
+:Receive in-scope question from LangGraph;
+:LLM chooses a keyword query;
+:Invoke LangChain retrieval tool;
+
+if (Query matches indexed terms?) then (yes)
+    :Search ChromaDB for up to three passages;
+    :Filter weak matches;
+    :Return passages with citation IDs;
+else (no)
+    :Return an empty evidence list;
+    :LLM may retry once with new keywords;
+endif
+
+if (Relevant passages retrieved?) then (yes)
+    :LLM writes 1-3 sentence summary,
+    each sentence ending with a citation ID;
+else (no)
+    :LLM replies NO_EVIDENCE (empty draft);
+endif
+
+:Return tool results as evidence and the draft to LangGraph;
+stop
+
+@enduml

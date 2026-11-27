@@ -48,10 +48,15 @@ VERDICTS = {
         "No answer given: the indexed CDC material does not cover this question, "
         "so the system abstains instead of guessing.",
     ),
+    "partially supported": (
+        "warning",
+        "Partial answer: only the statements below are supported by retrieved CDC "
+        "passages, even after one revision. Where the evidence falls short is listed underneath.",
+    ),
     "unsupported draft": (
         "error",
         "Draft withheld: the reflective agent found a statement that does not "
-        "match its cited evidence.",
+        "match its cited evidence, and one revision did not fix it.",
     ),
     "outside scope": (
         "info",
@@ -86,6 +91,8 @@ def normalize(state):
             "evidence": state.get("evidence", []),
             "draft": state.get("draft", []),
             "feedback": "",
+            "limits": state.get("limits", []),
+            "revisions": state.get("revision_count", 0),
         }
     status = state.get("review_status")
     verdict = STATUS_TO_VERDICT.get(status, "review unavailable")
@@ -137,8 +144,11 @@ def show_review_trace(result):
             "2. **Research agent** (an LLM) called the ChromaDB retrieval tool and "
             "wrote a short summary, citing a passage for every sentence.\n"
             "3. **Reflective agent** checked that most words in every draft sentence "
-            "appear in the passage it cites before anything was shown."
+            "appear in the passage it cites before anything was shown.\n"
+            "4. **Router** decided the next step: publish, send the draft back once "
+            "with the reviewer's instructions, or report what the evidence supports."
         )
+        st.caption(f"Revisions after review: {result.get('revisions', 0)} of 1 allowed.")
         evidence = {item["id"]: item["text"] for item in result.get("evidence", [])}
         rows = [
             {
@@ -161,12 +171,16 @@ def run(question):
     st.divider()
     st.markdown(f"**Question:** {question}")
     show_verdict(result["verdict"])
-    if result["verdict"] == "evidence matched":
+    if result["verdict"] in ("evidence matched", "partially supported"):
         st.markdown(result["answer"])
-        show_sources(result["evidence"])
     else:
         st.caption(result["answer"])
-    if result["verdict"] in STATUS_TO_VERDICT.values():
+    if result.get("limits"):
+        st.markdown("**Where the evidence falls short**")
+        st.markdown("\n".join(f"- {limit}" for limit in result["limits"]))
+    if result["verdict"] in ("evidence matched", "partially supported"):
+        show_sources(result["evidence"])
+    if result["verdict"] in (*STATUS_TO_VERDICT.values(), "partially supported"):
         show_review_trace(result)
 
 
@@ -187,7 +201,8 @@ with st.sidebar:
     )
     st.markdown(
         "**Privacy.** Questions are sent to an external LLM service (Groq) to "
-        "write the summary, and this app does not save them. "
+        "write the summary. Each run, including the question, is saved as a JSON "
+        "review log on the server so the team can evaluate the reviewer's feedback. "
         "Do not include names, contact details, or health records."
     )
     st.markdown(

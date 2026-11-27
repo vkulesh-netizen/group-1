@@ -1,0 +1,53 @@
+@startuml
+title Sleep Health Research - UML Sequence Diagram (reflection and adaptation)
+
+actor "Research Analyst" as Analyst
+participant Streamlit
+participant "LangGraph workflow" as Graph
+participant "Router select() /\nroute_after_review()" as Router
+participant "Research worker\n(LLM agent)" as Research
+participant "LangChain RAG tool" as RAG
+database ChromaDB
+participant "Reflective worker\nreflect()" as Reflect
+participant "Feedback logger" as Logger
+
+Analyst -> Streamlit: Submit question
+Streamlit -> Graph: invoke({question})
+Graph -> Router: select(state)
+
+alt General sleep question
+    Router --> Graph: Route to research
+    loop at most 1 + MAX_REVISIONS (1) attempts
+        Graph -> Research: research(state [+ reviewer instructions])
+        Research -> RAG: retrieve_sleep_evidence(query)
+        RAG -> ChromaDB: Search indexed passages
+        ChromaDB --> RAG: Matching records
+        RAG --> Research: Evidence with citation IDs
+        Research --> Graph: Evidence, cited draft, chat messages
+        Graph -> Reflect: reflect(state)
+        Reflect --> Graph: Review: per-claim checks,\ngaps and instructions
+        Graph -> Router: route_after_review(state)
+        alt Review passes
+            Router --> Graph: publish
+        else Gaps found and revision_count < 1
+            Router --> Graph: revise (revision_count + 1,\nfeedback = instructions)
+        else Gaps remain after one revision
+            Router --> Graph: report_limits
+        end
+    end
+    alt publish
+        Graph -> Graph: Cited answer; verdict evidence matched
+    else report_limits
+        Graph -> Graph: Supported claims only + limits;\npartially supported / unsupported draft /\ninsufficient evidence
+    end
+else Outside scope or blocked personal wording
+    Router --> Graph: Route to scope_reply
+    Graph -> Graph: Outside-scope verdict and message
+end
+
+Graph -> Logger: record(state)
+Logger -> Logger: Write logs/run-*.json\n(exchanges, feedback, outcome)
+Graph --> Streamlit: Final workflow state
+Streamlit --> Analyst: Verdict, answer, sources,\nlimits and review trace
+
+@enduml

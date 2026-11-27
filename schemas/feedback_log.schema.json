@@ -1,0 +1,136 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "feedback_log.schema.json",
+  "title": "Sleep Health Research - worker chat and reviewer feedback log",
+  "description": "One file per question. Records each worker's exchanges, the Reflective Worker's feedback (claim, gap, instruction), the LangGraph router's decisions, the retry count and the final outcome.",
+  "type": "object",
+  "required": ["schema_version", "run_id", "created_at", "question", "max_revisions", "exchanges", "feedback", "outcome"],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {"const": "1.0"},
+    "run_id": {"type": "string"},
+    "created_at": {"type": "string", "description": "UTC time in ISO 8601"},
+    "question": {"type": "string"},
+    "max_revisions": {"type": "integer", "minimum": 0},
+    "exchanges": {
+      "type": "array",
+      "description": "Every worker turn and router decision, in order.",
+      "items": {
+        "oneOf": [
+          {"$ref": "#/$defs/research_exchange"},
+          {"$ref": "#/$defs/review_exchange"},
+          {"$ref": "#/$defs/router_decision"}
+        ]
+      }
+    },
+    "feedback": {
+      "type": "array",
+      "description": "Every gap found by the Reflective Worker, flattened across attempts.",
+      "items": {
+        "type": "object",
+        "required": ["attempt", "claim", "citation", "support_ratio", "gap", "action", "instruction"],
+        "additionalProperties": false,
+        "properties": {
+          "attempt": {"type": "integer", "minimum": 0},
+          "claim": {"type": ["string", "null"]},
+          "citation": {"type": ["string", "null"]},
+          "support_ratio": {"type": "number", "minimum": 0, "maximum": 1},
+          "gap": {"$ref": "#/$defs/gap"},
+          "action": {"$ref": "#/$defs/action"},
+          "instruction": {"type": "string"}
+        }
+      }
+    },
+    "outcome": {
+      "type": "object",
+      "required": ["verdict", "revision_count", "answer", "limits"],
+      "additionalProperties": false,
+      "properties": {
+        "verdict": {"enum": ["evidence matched", "partially supported", "unsupported draft", "insufficient evidence", "outside scope"]},
+        "revision_count": {"type": "integer", "minimum": 0},
+        "answer": {"type": "string"},
+        "limits": {"type": "array", "items": {"type": "string"}}
+      }
+    }
+  },
+  "$defs": {
+    "gap": {"enum": ["no_evidence", "uncited_claim", "citation_not_retrieved", "low_support"]},
+    "action": {"enum": ["search_again", "find_evidence", "narrow_claim"]},
+    "claim_review": {
+      "type": "object",
+      "required": ["claim", "citation", "support_ratio", "supported", "gap", "action", "instruction"],
+      "additionalProperties": false,
+      "properties": {
+        "claim": {"type": ["string", "null"]},
+        "citation": {"type": ["string", "null"]},
+        "support_ratio": {"type": "number", "minimum": 0, "maximum": 1},
+        "supported": {"type": "boolean"},
+        "gap": {"oneOf": [{"$ref": "#/$defs/gap"}, {"type": "null"}]},
+        "action": {"oneOf": [{"$ref": "#/$defs/action"}, {"type": "null"}]},
+        "instruction": {"type": ["string", "null"]}
+      }
+    },
+    "message": {
+      "type": "object",
+      "required": ["role", "content"],
+      "properties": {
+        "role": {"enum": ["human", "ai", "tool", "system"]},
+        "content": {"type": "string"},
+        "tool_calls": {"type": "array", "items": {"type": "object", "required": ["name", "args"]}},
+        "tool_name": {"type": "string"}
+      }
+    },
+    "research_exchange": {
+      "type": "object",
+      "required": ["step", "actor", "attempt", "feedback_received", "messages", "output"],
+      "additionalProperties": false,
+      "properties": {
+        "step": {"type": "integer", "minimum": 1},
+        "actor": {"const": "research_worker"},
+        "attempt": {"type": "integer", "minimum": 0},
+        "feedback_received": {"type": ["string", "null"]},
+        "messages": {"type": "array", "items": {"$ref": "#/$defs/message"}},
+        "output": {
+          "type": "object",
+          "required": ["evidence_ids", "draft"],
+          "properties": {
+            "evidence_ids": {"type": "array", "items": {"type": "string"}},
+            "draft": {"type": "array", "items": {"type": "object", "required": ["id", "text"]}}
+          }
+        }
+      }
+    },
+    "review_exchange": {
+      "type": "object",
+      "required": ["step", "actor", "attempt", "review"],
+      "additionalProperties": false,
+      "properties": {
+        "step": {"type": "integer", "minimum": 1},
+        "actor": {"const": "reflective_worker"},
+        "attempt": {"type": "integer", "minimum": 0},
+        "review": {
+          "type": "object",
+          "required": ["verdict", "claims", "gaps"],
+          "additionalProperties": false,
+          "properties": {
+            "verdict": {"enum": ["pass", "revise", "insufficient"]},
+            "claims": {"type": "array", "items": {"$ref": "#/$defs/claim_review"}},
+            "gaps": {"type": "array", "items": {"$ref": "#/$defs/claim_review"}}
+          }
+        }
+      }
+    },
+    "router_decision": {
+      "type": "object",
+      "required": ["step", "actor", "attempt", "decision", "reason"],
+      "additionalProperties": false,
+      "properties": {
+        "step": {"type": "integer", "minimum": 1},
+        "actor": {"const": "langgraph_router"},
+        "attempt": {"type": "integer", "minimum": 0},
+        "decision": {"enum": ["publish", "revise", "report_limits", "scope_reply"]},
+        "reason": {"type": "string"}
+      }
+    }
+  }
+}

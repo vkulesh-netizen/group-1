@@ -1,0 +1,76 @@
+@startuml HealthResearchArchitecture
+title Sleep Health Research - Overall Architecture (reflection and adaptation)
+top to bottom direction
+skinparam componentStyle rectangle
+skinparam packageStyle rectangle
+
+actor "Research Analyst" as User
+
+package "Presentation Layer" {
+  component "Streamlit Frontend\napp.py" as UI
+}
+
+package "Orchestration Layer - LangGraph (pipeline.py)" {
+  component "Planner / Router\nselect()  scope check\nroute_after_review()  next step" as Router
+  component "Scope Reply" as Scope
+  component "Publish /\nReport Limits" as Final
+}
+
+package "Agent Layer (workers)" {
+  component "Research Worker\nresearch_agent.py\nLangChain agent" as Research
+  component "Reflective Worker\nreflect_agent.py\ndeterministic reviewer" as Reflect
+}
+
+package "Tool Layer" {
+  component "Retrieval Tool\nretrieve_sleep_evidence()\ntools.py" as RAG
+  database "In-memory ChromaDB\ncdc_sleep_v1" as DB
+  component "Feedback Logger\nfeedback_log.py" as Logger
+  database "JSON logs\nlogs/run-*.json" as Logs
+}
+
+cloud "Groq LLM\nopenai/gpt-oss-20b" as LLM
+cloud "CDC About Sleep\nSource Reference" as CDC
+
+User --> UI : General sleep question
+UI --> Router : invoke({question})
+Router --> Scope : Out of scope
+Router --> Research : In scope (attempt 0)
+Research --> LLM : Prompt + tool results
+Research --> RAG : Keyword query
+RAG --> DB : Binary-vector search
+DB ..> CDC : Source attribution
+RAG --> Research : Evidence + IDs
+Research --> Reflect : Draft + evidence (via state)
+Reflect --> Router : Review: claims, gaps,\ninstructions
+Router --> Research : Revise once with\nreviewer instructions
+Router --> Final : Pass, or gaps after 1 revision
+Final --> Logger : Final state + trace
+Scope --> Logger : Final state + trace
+Logger --> Logs : Write run log
+Logger --> UI : Final state returned\n(verdict, answer, limits)
+UI --> User : Answer, sources,\nlimits, review trace
+
+note right of Router
+  The router, not a worker,
+  decides the next step:
+  pass -> publish
+  gap and revision_count < 1 -> revise
+  gap after 1 revision -> report limits
+end note
+
+note right of Reflect
+  Reflection: citation present,
+  citation retrieved, >= 60% word support.
+  Adaptation: one instruction per gap
+  (search_again, find_evidence,
+  narrow_claim).
+end note
+
+note bottom of Logs
+  One file per question:
+  chat messages, feedback (claim,
+  gap, instruction), retry count,
+  outcome. Not committed to git.
+end note
+
+@enduml

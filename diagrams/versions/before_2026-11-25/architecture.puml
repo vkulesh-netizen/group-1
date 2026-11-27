@@ -1,0 +1,57 @@
+
+@startuml HealthResearchArchitecture
+title Sleep Health Research - Overall Architecture
+top to bottom direction
+skinparam linetype ortho
+skinparam componentStyle rectangle
+
+actor "Research Analyst" as User
+
+package "Presentation Layer" {
+  component "Streamlit Frontend" as UI
+}
+
+package "Orchestration Layer - LangGraph" {
+  component "Planner / Router\nselect()" as Router
+  component "Scope Reply" as Scope
+}
+
+package "Worker Layer" {
+  component "Research Worker\nresearch()" as Research
+  component "Reflective Worker\nreflect()" as Reflect
+}
+
+package "Retrieval Layer" {
+  component "LangChain Retrieval Tool\nretrieve_sleep_evidence()" as RAG
+  database "In-memory ChromaDB\ncdc_sleep_v1" as DB
+}
+
+cloud "CDC About Sleep\nSource Reference" as CDC
+
+User --> UI : General sleep question
+UI --> Router : Invoke workflow
+Router --> Scope : Out-of-scope request
+Router --> Research : In-scope request
+Research --> RAG : Query
+RAG --> DB : Binary-vector search
+DB --> RAG : Ranked passages
+RAG --> Research : Evidence + IDs
+Research --> Reflect : Draft + evidence
+Reflect --> Router : Reviewed result
+Router --> UI : Final response
+Scope --> UI : Scope response
+DB ..> CDC : Source attribution
+
+note right of Router
+  Deterministic keyword and
+  personal-advice scope rules.
+  No LLM invocation.
+end note
+
+note right of DB
+  Four curated paraphrases.
+  Ephemeral collection.
+  No pretrained embeddings.
+end note
+
+@enduml
