@@ -1,0 +1,45 @@
+@startuml
+title Sleep Health Research - UML Sequence Diagram
+
+actor "Research Analyst" as Analyst
+participant Streamlit
+participant "LangGraph workflow" as Graph
+participant "Router select()" as Router
+participant "Research research()" as Research
+participant "LangChain RAG tool" as RAG
+database ChromaDB
+participant "Reflective worker reflect()" as Reflect
+participant "Scope reply" as Scope
+
+Analyst -> Streamlit: Submit question
+Streamlit -> Graph: invoke({question})
+Graph -> Router: select(state)
+
+alt General sleep question
+    Router --> Graph: Route to research
+    Graph -> Research: research(state)
+    Research -> RAG: Retrieve evidence(question)
+    RAG -> ChromaDB: Search indexed passages
+    ChromaDB --> RAG: Matching records
+    RAG --> Research: Evidence with citation IDs
+    Research --> Graph: Evidence and extractive draft
+    Graph -> Reflect: reflect(state)
+
+    alt Evidence matches draft
+        Reflect --> Graph: Cited answer and evidence matched
+    else No relevant evidence
+        Reflect --> Graph: Insufficient evidence; withhold answer
+    else Draft does not match evidence
+        Reflect --> Graph: Unsupported draft; withhold answer
+    end
+
+else Outside scope or blocked personal wording
+    Router --> Graph: Route to scope_reply
+    Graph -> Scope: Create scope response
+    Scope --> Graph: Outside-scope verdict and message
+end
+
+Graph --> Streamlit: Final workflow state
+Streamlit --> Analyst: Display verdict and response
+
+@enduml

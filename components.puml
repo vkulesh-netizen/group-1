@@ -1,5 +1,4 @@
-
-@startuml title
+@startuml components
 title Sleep Health Research - UML Component Diagram
 
 left to right direction
@@ -7,64 +6,80 @@ skinparam componentStyle uml2
 
 actor "Research Analyst" as Analyst
 
-component Streamlit
-component "LangGraph router" as Router
-component "Research worker" as Research
-component "Reflective worker" as Reflect
-component "LangChain RAG tool" as RAG
-database ChromaDB
+package "Presentation" {
+  component Streamlit
+}
 
-' Added component
-component "Scope Reply" as Scope
+package "Orchestration (LangGraph)" {
+  interface "IWorkflow" as IW
+  component "LangGraph router" as Router
+  component "Scope Reply" as Scope
+}
 
-' Original connections with data labels
+package "Agent layer" {
+  interface "IResearch" as IR
+  component "Research worker" as Research
+  interface "IReflection" as IF
+  component "Reflective worker" as Reflect
+}
+
+package "Tool layer" {
+  interface "IRetrieval" as IRT
+  component "LangChain RAG tool" as RAG
+  interface "IVectorSearch" as IV
+  database ChromaDB
+  interface "IFeedbackLog" as IL
+  component "Feedback logger" as Logger
+  database "JSON logs" as Logs
+}
+
+cloud "Groq LLM" as LLM
+
+' Interfaces provided by each component
+IW - Router
+IR - Research
+IF - Reflect
+IRT - RAG
+IV - ChromaDB
+IL - Logger
+
+' Connections with data labels
 Analyst --> Streamlit : Health inquiry
-Streamlit ..> Router : Question
-Router ..> Research : Supported question
-Research ..> Reflect : Draft + evidence
-Research ..> RAG : Search query
-RAG ..> ChromaDB : Vector search
-
-' Additional connections
-Router ..> Scope : Out-of-scope question
-Scope --> Streamlit : Scope message
+Streamlit ..> IW : Question
+Router ..> IR : Supported question\n(+ reviewer instructions\non revision)
+Research ..> IRT : Search query
+RAG ..> IV : Vector search
 ChromaDB --> RAG : Relevant passages
 RAG --> Research : Evidence + source IDs
-Reflect --> Router : Verdict + answer
-Router --> Streamlit : Final response
-
-' Added UML interfaces
-interface "IWorkflow" as IW
-interface "IResearch" as IR
-interface "IReflection" as IF
-interface "IRetrieval" as IRT
-interface "IVectorSearch" as IV
-
-Router - IW
-Research - IR
-Reflect - IF
-RAG - IRT
-ChromaDB - IV
+Research ..> LLM : Prompt / tool results
+Research ..> IF : Draft + evidence
+Reflect --> Router : Review: claims, gaps,\ninstructions
+Router ..> Scope : Out-of-scope question
+Scope --> Router : Scope message
+Router ..> IL : Final state + trace
+Logger --> Logs : run-*.json
+Router --> Streamlit : Verdict, answer, limits
 
 ' Component responsibilities
-note right of Router
+note bottom of Router
   Planner / Router
-  Function: select()
-  Classifies and routes questions.
+  select(): scope decision
+  route_after_review(): publish,
+  revise once, or report limits
 end note
 
-note right of Research
-  Research Worker
-  Function: research()
-  Retrieves evidence and
-  creates an extractive draft.
+note top of Research
+  Research Worker (research_agent.py)
+  LLM chooses the query, calls the tool
+  and writes a cited summary; on revision
+  follows the reviewer's instructions.
 end note
 
-note right of Reflect
-  Reflective Worker
-  Function: reflect()
-  Checks evidence grounding
-  and returns a verdict.
+note bottom of Reflect
+  Reflective Worker (reflect_agent.py)
+  Checks each claim's citation and
+  support; returns gaps with one
+  instruction each. Does not route.
 end note
 
 note bottom of ChromaDB
@@ -74,10 +89,9 @@ note bottom of ChromaDB
   In-memory storage
 end note
 
-note bottom of IW
-  Conceptual workflow interface.
-  Implemented through LangGraph
-  graph invocation.
+note bottom of Logs
+  schemas/feedback_log.schema.json
+  exchanges, feedback, outcome
 end note
 
 @enduml

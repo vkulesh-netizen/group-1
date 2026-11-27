@@ -1,26 +1,46 @@
 @startuml
-title Reflective Worker Workflow
+title Reflective Worker Workflow (reflection and adaptation)
 
 start
-:Receive draft and retrieved evidence;
+:Receive draft and retrieved evidence from LangGraph state;
 
 if (Is the draft empty?) then (yes)
-    :Set verdict to insufficient evidence;
-    :Withhold an answer;
+    :Record gap **no_evidence**;
+    :Instruction: search again with keywords
+    that name the topic of the question;
+    :Review verdict = **insufficient**;
 else (no)
-    :Compare each draft line and citation ID
-    with its evidence record;
-
-    if (Does every line match its evidence?) then (yes)
-        :Set verdict to evidence matched;
-        :Return cited answer;
+    repeat :Take the next draft claim;
+        if (Claim cites a passage ID?) then (no)
+            :Gap **uncited_claim**
+            Instruction: find evidence for the claim
+            or remove it;
+        elseif (Cited passage was retrieved?) then (no)
+            :Gap **citation_not_retrieved**
+            Instruction: retrieve evidence and cite
+            a returned passage, or remove the claim;
+        elseif (Support ratio >= 0.60?) then (no)
+            :Gap **low_support**
+            Instruction: narrow the claim to what
+            the passage states (quote the passage);
+        else (yes)
+            :Mark claim supported;
+        endif
+    repeat while (More claims?) is (yes) not (no)
+    if (Any gaps?) then (yes)
+        :Review verdict = **revise**;
     else (no)
-        :Set verdict to unsupported draft;
-        :Withhold the draft;
+        :Review verdict = **pass**;
     endif
 endif
 
-:Return verdict and result to LangGraph;
+:Return review (verdict, per-claim checks,
+gaps with instructions) to LangGraph;
+note right
+  The Reflective Worker does not decide
+  the next step. route_after_review()
+  in the LangGraph router does.
+end note
 stop
 
 @enduml

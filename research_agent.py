@@ -1,4 +1,4 @@
-"""Tool-using research worker for the sleep-health research workflow.
+"""Agent layer: tool-using research worker for the sleep-health research workflow.
 
 Owner: Jonas Harvie (research agent, drafting and summarization).
 
@@ -28,6 +28,9 @@ SYSTEM_PROMPT = f"""You are the research worker in a sleep-health research assis
 3. End every sentence with the ID of the passage that supports it in square brackets, for example:
    CDC lists keeping a regular bedtime and wake time among habits for better sleep [habits].
 4. Write only those sentences: no heading, list, or introduction.
+5. If the message includes reviewer feedback on an earlier attempt, follow each instruction:
+   search again with new keywords, find evidence for the named claim, or narrow the claim
+   to what the passage states. Drop any claim you cannot support.
 
 If the tool returns [] or nothing relevant to the question, reply with exactly: {NO_EVIDENCE}"""
 
@@ -74,10 +77,16 @@ def parse_draft(text):
     return draft
 
 
-def run_research_agent(agent, question):
-    """Run the agent on one question and return evidence and a cited draft."""
-    result = agent.invoke({"messages": [{"role": "user", "content": question}]})
+def run_research_agent(agent, question, feedback=None):
+    """Run the agent on one question and return evidence, a cited draft and its messages.
+
+    ``feedback`` is the Reflective Worker's instruction message when LangGraph
+    sends a draft back for revision; it is appended to the question.
+    """
+    content = f"{question}\n\n{feedback}" if feedback else question
+    result = agent.invoke({"messages": [{"role": "user", "content": content}]})
     return {
         "evidence": collect_evidence(result["messages"]),
         "draft": parse_draft(result["messages"][-1].text),
+        "messages": result["messages"],
     }

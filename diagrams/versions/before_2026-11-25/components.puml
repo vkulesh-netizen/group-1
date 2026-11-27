@@ -1,0 +1,83 @@
+
+@startuml title
+title Sleep Health Research - UML Component Diagram
+
+left to right direction
+skinparam componentStyle uml2
+
+actor "Research Analyst" as Analyst
+
+component Streamlit
+component "LangGraph router" as Router
+component "Research worker" as Research
+component "Reflective worker" as Reflect
+component "LangChain RAG tool" as RAG
+database ChromaDB
+
+' Added component
+component "Scope Reply" as Scope
+
+' Original connections with data labels
+Analyst --> Streamlit : Health inquiry
+Streamlit ..> Router : Question
+Router ..> Research : Supported question
+Research ..> Reflect : Draft + evidence
+Research ..> RAG : Search query
+RAG ..> ChromaDB : Vector search
+
+' Additional connections
+Router ..> Scope : Out-of-scope question
+Scope --> Streamlit : Scope message
+ChromaDB --> RAG : Relevant passages
+RAG --> Research : Evidence + source IDs
+Reflect --> Router : Verdict + answer
+Router --> Streamlit : Final response
+
+' Added UML interfaces
+interface "IWorkflow" as IW
+interface "IResearch" as IR
+interface "IReflection" as IF
+interface "IRetrieval" as IRT
+interface "IVectorSearch" as IV
+
+Router - IW
+Research - IR
+Reflect - IF
+RAG - IRT
+ChromaDB - IV
+
+' Component responsibilities
+note right of Router
+  Planner / Router
+  Function: select()
+  Classifies and routes questions.
+end note
+
+note right of Research
+  Research Worker
+  Function: research()
+  Retrieves evidence and
+  creates an extractive draft.
+end note
+
+note right of Reflect
+  Reflective Worker
+  Function: reflect()
+  Checks evidence grounding
+  and returns a verdict.
+end note
+
+note bottom of ChromaDB
+  Collection: cdc_sleep_v1
+  Four curated CDC passages
+  Binary keyword vectors
+  In-memory storage
+end note
+
+note bottom of IW
+  Conceptual workflow interface.
+  Implemented through LangGraph
+  graph invocation.
+end note
+
+@enduml

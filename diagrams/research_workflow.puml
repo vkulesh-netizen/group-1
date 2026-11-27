@@ -3,7 +3,16 @@ title Research Worker Workflow (LangChain agent)
 
 start
 :Receive in-scope question from LangGraph;
-:LLM chooses a keyword query;
+
+if (Revision attempt?) then (yes)
+    :Append the reviewer's instructions
+    (search_again / find_evidence / narrow_claim)
+    to the question;
+else (no)
+endif
+
+:LLM chooses a keyword query
+(new keywords if told to search again);
 :Invoke LangChain retrieval tool;
 
 if (Query matches indexed terms?) then (yes)
@@ -17,12 +26,14 @@ endif
 
 if (Relevant passages retrieved?) then (yes)
     :LLM writes 1-3 sentence summary,
-    each sentence ending with a citation ID;
+    each sentence ending with a citation ID,
+    dropping claims it cannot support;
 else (no)
     :LLM replies NO_EVIDENCE (empty draft);
 endif
 
-:Return tool results as evidence and the draft to LangGraph;
+:Merge tool results into the evidence list;
+:Return evidence, draft and chat messages to LangGraph;
 stop
 
 @enduml

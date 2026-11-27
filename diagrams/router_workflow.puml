@@ -1,21 +1,37 @@
 @startuml
-title Planner and Router Workflow
+title Planner and Router Workflow (scope and next-step decisions)
 
 start
 :Receive research question;
 :Convert question to lowercase and identify words;
+note right: select(): scope decision
 
-if (Contains sleep or bedtime?) then (yes)
-    if (Contains first-person or medical-advice terms?) then (yes)
-        :Route to scope_reply;
-        :Return outside-scope message;
+if (Contains sleep or bedtime\nand no first-person or\nmedical-advice terms?) then (yes)
+    :Route to research worker;
+    repeat
+        :Research worker drafts a cited summary;
+        :Reflective worker returns its review;
+        note right: route_after_review(): next-step decision
+        if (Gaps found and revision_count < 1?) then (yes)
+            :revise: revision_count + 1;
+            :Send the reviewer's instructions
+            to the research worker;
+        endif
+    repeat while (Revising?) is (yes) not (no)
+    if (Review verdict = pass?) then (yes)
+        :Publish cited answer
+        (evidence matched);
     else (no)
-        :Route to research worker;
+        :Report limits: show only supported claims
+        and list where the evidence falls short
+        (partially supported, unsupported draft
+        or insufficient evidence);
     endif
 else (no)
     :Route to scope_reply;
     :Return outside-scope message;
 endif
 
+:Record run in JSON feedback log;
 stop
 @enduml
